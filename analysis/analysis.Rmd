@@ -1,0 +1,712 @@
+---
+title:  "Replication of the Epistemic Side‑Effect Effect (ESEE) in Polish on a Representative Sample"
+author: "Bartosz Maćkiewicz, Marta Zaręba, Katarzyna Kuś, Katarzyna Paprzycka‑Hausman"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+#  Load packages and set global chunk defaults
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse)   # data wrangling & plotting
+library(ggpubr)      # convenient ggplot2 wrappers
+library(ez)          # ANOVAs
+library(flextable)   # nicely formatted tables
+library(foreign)     # read.spss()
+library(rstatix)     # pairwise tests
+library(metafor)     # meta‑analysis
+library(scico)       # colour palettes
+
+#  Read the SPSS file; each row is one participant
+esee <- read.spss("../data/Zbiór_UW_Marta_Zaręba_Esee_v4.sav", to.data.frame = T)
+
+#  Keep the first non‑missing value across a set of columns
+get_value <- function(x){
+  if (all(is.na(x))) return(NA) 
+  x[!is.na(x)]
+}
+
+recode_likert <- function(x){
+  recode(x,
+         `-3 zupełnie się nie zgadzam` = -3,
+         `-2` = -2,
+         `-1` = -1,
+         `0` = 0,
+         `1` = 1,
+         `2` = 2,
+         `+3 w pełni się zgadzam` = 3,
+         )
+}
+
+recode_binary <- function(x){
+  ifelse(str_sub(x, 1, 3) == "Tak", 1, 0)
+}
+
+#  Extract key responses (the original survey used many duplicate columns)
+esee <- esee %>% 
+  rowwise %>% 
+  mutate(
+    KLikert = get_value(c_across(matches("p1_4._r1"))),
+    KBinary = get_value(c_across(matches("p1_4.$"))),
+    KExpl = get_value(c_across(matches("p5._w[123]$", ignore.case = FALSE))),
+    KProfits = get_value(c_across(matches("p1_6._r1$"))),
+    Int = get_value(c_across(matches("p1_6._r2$"))),
+    IntUmyślnie = get_value(c_across(matches("p1_6._r3$"))),
+    IntCelowo = get_value(c_across(matches("p1_6._r4$"))),
+    IntŚwiadomie = get_value(c_across(matches("p1_6._r5$"))),
+    Intention = get_value(c_across(matches("p1_6._r6$"))),
+    BSądził = get_value(c_across(matches("p1_6._r7$"))),
+    BPrzekonany = get_value(c_across(matches("p1_6._r8$"))),
+    Aware = get_value(c_across(matches("p1_6._r9$"))),
+    Reasons = get_value(c_across(matches("p1_6._r10$"))),
+    Condition = case_when(
+      !is.na(p1_6a_r1) ~ "Help",
+      !is.na(p1_6b_r1) ~ "Help",
+      !is.na(p1_6c_r1) ~ "Help",
+      !is.na(p1_6d_r1) ~ "Help",
+      !is.na(p1_6e_r1) ~ "Help",
+      !is.na(p1_6f_r1) ~ "Help",
+      !is.na(p1_6g_r1) ~ "Harm",
+      !is.na(p1_6h_r1) ~ "Harm",
+      !is.na(p1_6i_r1) ~ "Harm",
+      !is.na(p1_6j_r1) ~ "Harm",
+      !is.na(p1_6k_r1) ~ "Harm",
+      !is.na(p1_6l_r1) ~ "Harm",
+    ),
+    Scale = case_when(
+      !is.na(p1_6a_r1) ~ "LIK",
+      !is.na(p1_6b_r1) ~ "FC",
+      !is.na(p1_6c_r1) ~ "LIK",
+      !is.na(p1_6d_r1) ~ "FC",
+      !is.na(p1_6e_r1) ~ "LIK",
+      !is.na(p1_6f_r1) ~ "FC",
+      !is.na(p1_6g_r1) ~ "LIK",
+      !is.na(p1_6h_r1) ~ "FC",
+      !is.na(p1_6i_r1) ~ "LIK",
+      !is.na(p1_6j_r1) ~ "FC",
+      !is.na(p1_6k_r1) ~ "LIK",
+      !is.na(p1_6l_r1) ~ "FC",
+    ),
+    Form = case_when(
+      !is.na(p1_6a_r1) ~ "AG",
+      !is.na(p1_6b_r1) ~ "AG",
+      !is.na(p1_6c_r1) ~ "PR",
+      !is.na(p1_6d_r1) ~ "PR",
+      !is.na(p1_6e_r1) ~ "ST",
+      !is.na(p1_6f_r1) ~ "ST",
+      !is.na(p1_6g_r1) ~ "AG",
+      !is.na(p1_6h_r1) ~ "AG",
+      !is.na(p1_6i_r1) ~ "PR",
+      !is.na(p1_6j_r1) ~ "PR",
+      !is.na(p1_6k_r1) ~ "ST",
+      !is.na(p1_6l_r1) ~ "ST",
+    )
+  )
+
+esee$KLikert <- recode_likert(esee$KLikert)
+esee$KBinary <- recode_binary(esee$KBinary)
+
+cols_to_recode <-
+  c(
+    "KProfits",
+    "Int",
+    "IntUmyślnie",
+    "IntŚwiadomie",
+    "IntCelowo",
+    "Intention",
+    "BSądził",
+    "BPrzekonany",
+    "Aware",
+    "Reasons"
+  )
+
+for (col in cols_to_recode){
+  esee[[col]] = recode_likert(esee[[col]])
+}
+
+esee$edu <- esee$e7_2
+
+esee <- esee %>% 
+  mutate(
+    #  Combine Likert and binary into one three‑level factor
+    KBinaryAll = case_when(
+      (Scale == "FC") & (KBinary == 1) ~ "Yes",
+      (Scale == "FC") & (KBinary == 0) ~ "No",
+      (Scale == "LIK") & (KLikert == 0) ~ "Neither",
+      (Scale == "LIK") & (KLikert > 0) ~ "Yes",
+      (Scale == "LIK") & (KLikert < 0) ~ "No",
+    ) 
+  )
+
+esee <- esee %>% 
+  mutate(
+    KExplSimple = case_when(
+      str_detect(KExpl, "przekonany") ~ "B", # Belief
+      str_detect(KExpl, "sprawę") ~ "Q", # Awareness
+      str_detect(KExpl, "sprawy") ~ "Q", # Awareness
+      str_detect(KExpl, "powody") ~ "R", # Reasons
+      str_detect(KExpl, "powodów") ~ "R", # Resons
+      str_detect(KExpl, "Inne") ~ "O", # Other
+    )
+  )
+
+esee <- esee %>% select(ID, survey_finish_time, sex, sex2, age, year,
+                        location = miasta, location2 = miasta2, location3 = miasta3, 
+                        KLikert, KBinary, KBinaryAll, KExpl, KExplSimple, KProfits, Int, IntUmyślnie,
+                        IntCelowo, IntŚwiadomie, Intention, BSądził, BPrzekonany,
+                        Aware, Reasons, Condition, Scale, Form, edu)
+
+write_csv(esee, "../data/esee_in_polish_clean.csv")
+esee <- read_csv("../data/esee_in_polish_clean.csv")
+```
+
+### Simplified codebook 
+
+- **ID** – anonymous identifier assigned by the survey platform; unique per participant.  
+- **survey_finish_time** – total completion time for the whole questionnaire, recorded in **seconds** (numeric).  
+- **sex** – self‑reported biological sex with four response options: *Kobieta* (female), *Mężczyzna* (male), *Inna* (other), *Nie chcę udzielać odpowiedzi* (prefer not to say).  
+- **sex2** – free‑text clarification shown **only** when *sex = “Inna”*; respondents may leave it blank.  
+- **age** – age bin chosen from the panel provider’s standard categories   
+- **edu** – highest level of completed education (ordered from lowest to highest):  
+  - *Podstawowe* — **Primary education**  
+  - *Zawodowe lub policealne* — **Vocational or post‑secondary diploma**  
+  - *Średnie* — **Secondary education / high‑school diploma**  
+  - *Wyższe licencjackie lub inżynierskie* — **Bachelor’s or Engineering degree**  
+  - *Wyższe magisterskie* — **Master’s degree (MA/MSc)**  
+  - *Doktorat lub więcej* — **Doctorate or higher**
+- **year** – numeric age in full years (continuous).  
+- **location** – five‑level place‑of‑residence item: *wieś* (village), *małe miasto* (≤ 20 k), *średnie miasto* (20–99 k), *duże miasto* (100–500 k), *wielkie miasto* (> 500 k).  
+- **location2** – additional 2‑level split of the middle categories (*20–49 k* vs. *50–99 k*).  
+- **location3** – additional 2‑level split of the upper‑middle categories (*100–200 k* vs. *200–500 k*).  
+- **KLikert** – agreement level to “The CEO knew that ... *harm/help* ...?” (see **Form** for details on phrasing) answered on a **7‑point Likert scale** from ‑3 (*zdecydowanie nie*, *strongly disagree*) to +3 (*zdecydowanie tak*, *strongly agree*).  
+- **KBinary** – same question in a **forced‑choice** format: `1 = "Tak" ("Yes")`, `0 = "Nie" ("No")`.  
+- **KBinaryAll** – unified three‑level factor combining both formats: *Yes* / *No* / *Neither* (neutral midpoint of the Likert scale).  
+- **KExpl** – open‑choice justification (Polish wording) for the knowledge attribution. The form displayed depends on the respondent’s earlier answer:  
+  - *Positive* claim (> 0 or `1`):
+    - The CEO had reasons to believe that he would harm the environment.
+    - The CEO believed that he would harm the environment. 
+    - The CEO was aware that he could harm the environment.
+    - Other (explain)
+  - *Negative* claim (< 0 or `0`): symmetrical negations of the above.  
+    - The CEO had no reasons to believe that he would harm the environment.
+    - The CEO did not believe that he would harm the environment.
+    - The CEO was not aware that he could harm the environment.
+    - Other (explain)
+  - *Neutral* (`0` only):   
+    - It was not clear whether the CEO had reasons to believe that he would harm the environment.
+    - It was not clear whether the CEO believed that he would harm the environment. 
+    - It was not clear whether the CEO was aware that he could harm the environment.
+    - Other (explain)
+- **KExplSimple** – single‑letter code extracted from **KExpl**:  
+  - `B` = *Belief* (CEO believed)  
+  - `Q` = *Awareness* (CEO was aware)  
+  - `R` = *Reasons* (CEO had reasons)  
+  - `O` = *Other* / uncategorised text  
+- **KProfits** –agreement level to “The CEO knew the program would increase profits”; 7‑point Likert (‑3…+3) mirroring **KLikert**  
+- **Int** –agreement level to intentionality attribution with adverb *intencjonalnie* (“intentionally”); Likert ‑3…+3.  
+- **IntUmyślnie** – agreement level to intentionality attribution with adverb *umyślnie* (“deliberately”); Likert ‑3…+3.  
+- **IntCelowo** – agreement level to intentionality attribution with adverb *celowo* (“purposefully”);  Likert ‑3…+3.
+- **IntŚwiadomie** – agreement level to intentionality attribution with adverb *świadomie* (“knowingly”);  Likert ‑3…+3.
+- **Intention** – agreement level to intention attribution with phrasing *miał intencję, aby…* (“had the intention to…”); Likert ‑3…+3.
+- **BSądził** – agreement level to belief attribution using verb *sądził* (“judged / thought”); Likert ‑3…+3.   
+- **BPrzekonany** – agreement level to belief attribution using phrase *był przekonany* (“believed”); Likert ‑3…+3.
+- **Aware** – agreement level to awareness attribution *był świadomy* (“was aware”).  
+- **Reasons** – agreement level to reason attribution *miał powody* (“had reasons”).  
+- **Condition** – vignette type manipulated between subjects: `Harm` (environment worsens) or `Help` (environment improves).  
+- **Scale** – response format for the knowledge item: `LIK` = 7‑point Likert, `FC` = forced choice.  
+- **Form** – wording of the knowledge statement shown before the response:  
+  - `AG` – **Agentive**: *Dyrektor wiedział, że zaszkodzi/pomoże środowisku* (“The CEO knew he would harm/help the environment”).  
+  - `PR` – **Causal**: *Dyrektor wiedział, że wdrożenie programu pomoże/zaszkodzi środowisku* (“…that implementing the programme would help/harm the environment”).  
+  - `ST` – **State‑change**: *Dyrektor wiedział, że stan środowiska się pogorszy/polepszy* (“…that the state of the environment would get worse/better”).
+
+# Demographics
+
+## Sex/gender
+
+```{r}
+pander::pander(table(esee$sex))
+```
+
+## Age
+```{r}
+esee %>% as.data.frame %>% summarise(M = mean(year), SD = sd(year)) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+## Location
+
+```{r}
+pander::pander(prop.table(table(esee$location)))
+pander::pander(table(esee$location2))
+pander::pander(table(esee$location3))
+```
+
+## Education
+
+```{r}
+pander::pander(table(esee$edu))
+```
+
+
+## Number of participants in each condition
+
+```{r}
+esee %>% 
+  group_by(Condition, Scale, Form) %>% 
+  summarize(n = n()) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+# Results
+
+## Knowedge
+
+### Likert format
+
+```{r}
+esee %>% 
+  filter(Scale == "LIK") %>% 
+  group_by(Form, Condition) %>% 
+  summarize(
+    M = mean(KLikert),
+    SD = sd(KLikert),
+    n = n()
+  ) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+```{r}
+ggbarplot(data = esee,
+          x = "Condition",
+          fill = "Condition",
+          y = "KLikert",
+          facet.by = "Form",
+          add = "mean_se",
+          ylim = c(-3, 3)
+          ) + scico::scale_fill_scico_d()
+```
+
+### Forced-choice format 
+
+```{r}
+esee %>% 
+  filter(Scale == "FC") %>% 
+  group_by(Form, Condition) %>% 
+  summarize(
+    `%` = mean(KBinary) * 100,
+    n = n()
+  ) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+```{r}
+ggbarplot(data = esee,
+          x = "Condition",
+          fill = "Condition",
+          y = "KBinary",
+          facet.by = "Form",
+          add = "mean_se",
+          ylim = c(0, 1)
+          )  + scico::scale_fill_scico_d()
+```
+
+## Rest of the questions
+
+### Splitted
+
+```{r}
+esee_long <- pivot_longer(esee, cols = all_of(cols_to_recode), names_to = "question", values_to = "response")
+
+esee_long %>% 
+  group_by(question, Scale, Form, Condition) %>% 
+  summarize(
+    M = mean(response),
+    SD = sd(response),
+    n = n()
+  ) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+
+```{r fig.height=15}
+ggbarplot(data = esee_long,
+          x = "Condition",
+          fill = "Scale",
+          y = "response",
+          facet.by = c("question", "Form"),
+          add = "mean_se",
+          ylim = c(-3, 3), 
+          position = position_dodge(0.9)
+          ) + scico::scale_fill_scico_d()
+```
+
+### Splitted belief
+
+```{r}
+esee_long %>% 
+  filter(question %in% c("BPrzekonany", "BSądził")) %>% 
+  group_by(question, Form, Condition) %>% 
+  summarize(
+    M = mean(response),
+    SD = sd(response),
+    n = n()
+  ) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+```{r fig}
+ggbarplot(data = esee_long %>% filter(question %in% c("BPrzekonany", "BSądził")), 
+          x = "Condition",
+          fill = "Form",
+          y = "response",
+          facet.by = c("question"),
+          add = "mean_se",
+          ylim = c(-3, 3), 
+          position = position_dodge(0.9)
+          ) + scico::scale_fill_scico_d()
+```
+
+
+```{r}
+esee_long_belief <- esee_long %>% filter(question %in% c("BPrzekonany", "BSądził"))
+
+results <- ez::ezANOVA(data = esee_long_belief,
+            dv = response,
+            wid = ID,
+            between = .(Condition, Form),
+            within = question)
+
+pander::pander(results$ANOVA)
+```
+
+
+
+### For all conditions combined
+
+```{r}
+esee_long <- pivot_longer(esee, cols = all_of(cols_to_recode), names_to = "question", values_to = "response")
+
+esee_long %>% 
+  group_by(question, Condition) %>% 
+  summarize(
+    M = mean(response),
+    SD = sd(response),
+    n = n()
+  ) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+```{r fig.height=10}
+ggbarplot(data = esee_long,
+          x = "Condition",
+          fill = "Condition",
+          y = "response",
+          facet.by = c("question"),
+          add = "mean_se",
+          ylim = c(-3, 3), 
+          position = position_dodge(0.9)
+          ) + scico::scale_fill_scico_d()
+```
+
+
+# Further statistical analyses
+
+## Is the formulation of the question statistically significant?
+
+### ANOVA for responses on Likert scale
+
+```{r}
+esee$participant <- 1:nrow(esee)
+results <- ez::ezANOVA(data = esee %>% filter(Scale == "LIK"),
+            dv = KLikert,
+            wid = participant,
+            between = .(Condition, Form))
+
+pander::pander(results$ANOVA)
+```
+
+### Pairwise comparisons for responses on Likert scale
+
+```{r}
+esee %>% 
+  filter(Scale == "LIK") %>% 
+  group_by(Condition) %>% 
+  pairwise_t_test(KLikert ~ Form) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+### Pairwise comparisons for responses in fored-choice format
+
+```{r}
+binary_tally <- esee %>% 
+  filter(Scale == "FC") %>% 
+  group_by(Condition, Form, KBinary) %>% 
+  tally()
+
+binary_tally <- binary_tally %>% 
+  group_by(Condition) %>% 
+  pivot_wider(names_from = c("KBinary"), values_from = "n")
+
+binary_tally_harm <- binary_tally %>%
+  filter(Condition == "Harm") %>% 
+  column_to_rownames("Form") %>% 
+  select(everything(), -Condition) %>% 
+  pairwise_fisher_test(., p.adjust.method = "none") %>% 
+  mutate(Condition = "Harm", .before = group1)
+
+binary_tally_help <- binary_tally %>% 
+  filter(Condition == "Help") %>% 
+  column_to_rownames("Form") %>% 
+  select(everything(), -Condition) %>% 
+  pairwise_fisher_test(., p.adjust.method = "none") %>% 
+  mutate(Condition = "Help", .before = group1)
+
+rbind(binary_tally_harm, binary_tally_help) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+## Justifications
+
+# Table with three formulations separately
+
+```{r}
+explanations <- esee %>% 
+  group_by(Scale, Form, Condition, KBinaryAll, KExplSimple) %>% 
+  summarize(n = n()) %>% 
+  group_by(Scale, Form, Condition, KBinaryAll) %>% 
+  mutate(`Percent` = n/sum(n) * 100) 
+
+explanations %>% 
+  pivot_wider(names_from = c("KExplSimple"), values_from = c("Percent", "n")) %>% 
+  select(Scale, Form, Condition, Kc = KBinaryAll, `Percent_B`, n_B, `Percent_Q`, n_Q, `Percent_R`, n_R, `Percent_O`, n_O) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+### Justifications for binary choice
+
+```{r}
+ggbarplot(y = "Percent",
+          fill = "KExplSimple",
+          x = "KBinaryAll",
+          facet.by = c("Form", "Condition"),
+          data = explanations %>% filter(Scale == "FC"),
+          position = position_dodge(0.9)
+          )
+```
+
+
+### Justifications for Likert scale 
+
+```{r}
+ggbarplot(y = "Percent",
+          fill = "KExplSimple",
+          x = "KBinaryAll",
+          facet.by = c("Form", "Condition"),
+          data = explanations %>% filter(Scale == "LIK"),
+          position = position_dodge(0.9)
+          )
+```
+
+### Table with three formulations together
+
+```{r}
+explanations <- esee %>% 
+  group_by(Scale, Condition, KBinaryAll, KExplSimple) %>% 
+  summarize(n = n()) %>% 
+  group_by(Scale, Condition, KBinaryAll) %>% 
+  mutate(`Percent` = n/sum(n) * 100) 
+
+explanations %>% 
+  pivot_wider(names_from = c("KExplSimple"), values_from = c("Percent", "n")) %>% 
+  select(Scale, Condition, Kc = KBinaryAll, `Percent_B`, n_B, `Percent_Q`, n_Q, `Percent_R`, n_R, `Percent_O`, n_O) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+### Justifications 
+
+```{r}
+ggbarplot(y = "Percent",
+          fill = "KExplSimple",
+          x = "KBinaryAll",
+          facet.by = c("Scale", "Condition"),
+          data = explanations,
+          position = position_dodge(0.9)
+          )
+```
+
+## Meta-analysis
+
+```{r} 
+lik_meta <- esee %>% 
+  filter(Scale == "LIK") %>% 
+  group_by(Condition, Form) %>% 
+  summarize(M = mean(KLikert),
+            SD = sd(KLikert),
+            n = n()
+            ) %>% 
+  pivot_wider(names_from = "Condition", values_from = c("M", "SD", "n")) %>% 
+  mutate(Scale = "LIK", .before = Form) %>% 
+  mutate(d = compute.es::mes(M_Harm, M_Help, SD_Harm, SD_Help, n_Harm, n_Help, verbose = F)$d,
+         var = compute.es::mes(M_Harm, M_Help, SD_Harm, SD_Help, n_Harm, n_Help, verbose = F)$var.d,
+         )
+
+
+
+ww_meta <- esee %>% 
+  filter(Scale == "FC") %>% 
+  group_by(Condition, Form, KBinary) %>% 
+  tally() %>% 
+  group_by(Condition, Form, KBinary) %>% 
+  pivot_wider(names_from = c("Condition", "KBinary"), values_from = c("n")) %>% 
+  mutate(Scale = "FC") %>% 
+  mutate(
+    or = (Harm_1 * Help_0) / (Help_0 * Harm_0),
+    vor = (1/Harm_1) + (1/Harm_0) +(1/Help_1) +(1/Help_0),
+    d = log(or) * (sqrt(3)/pi),
+    var = vor * (3/(pi**2))
+  )
+  
+meta <- bind_rows(lik_meta, ww_meta) %>% 
+  mutate(StudySlab = str_c(Scale, " ", Form), .before = Scale)
+```
+
+```{r}
+fit <- rma.uni(yi = d,
+               vi = var,
+               slab = StudySlab,
+               data = meta,
+               test = "t",
+               method = "REML",
+              )
+
+```
+
+```{r}
+summary(fit)
+```
+
+### Forest plot
+
+```{r forest-plot-all}
+forest(fit, ilab = meta$Scale, ilab.xpos = -0.5, ilab.pos = 2)
+```
+
+### Meta-regression
+
+```{r}
+fit <- rma.mv(yi = d,
+               V = var,
+               slab = StudySlab,
+               data = meta,
+               test = "t",
+               method = "REML",
+               mods = ~ Scale + Form 
+              )
+summary(fit)
+```
+
+# Appendix: responses to Likert scane questions collapsed into three categories
+
+## Results
+
+### Knowedge
+
+#### Categorized Likert format and Forced-choice format
+
+```{r}
+esee %>% 
+  group_by(Form, Condition, Scale, KBinaryAll) %>% 
+  summarize(
+    n = n(),
+  ) %>% 
+  group_by(Form, Condition, Scale) %>% 
+  mutate(Percent = n * 100 / sum(n)) %>% 
+  pivot_wider(names_from = "KBinaryAll", values_from = c("n", "Percent")) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+```{r}
+plots_df <- esee %>% 
+  group_by(Form, Condition, Scale, KBinaryAll) %>% 
+  summarize(
+    n = n(),
+  ) %>% 
+  group_by(Form, Condition, Scale) %>% 
+  mutate(Percent = n * 100 / sum(n)) 
+  
+ggbarplot(data = plots_df,
+          x = "Scale",
+          fill = "KBinaryAll",
+          y = "Percent",
+          facet.by = c("Condition", "Form"),
+          position = position_dodge(0.9)
+          ) + scico::scale_fill_scico_d()
+```
+
+## Rest of the questions
+
+### For all conditions combined
+
+```{r}
+esee_long <- pivot_longer(esee, cols = all_of(cols_to_recode), names_to = "question", values_to = "response")
+esee_long <- esee_long %>% mutate(response_bin = case_when(
+        (response == 0) ~ "Neither",
+        (response > 0) ~ "Yes",
+        (response < 0) ~ "No"
+  
+))
+
+esee_long %>% 
+  group_by(question, Condition, response_bin) %>% 
+  summarize(n = n()) %>% 
+  group_by(question, Condition) %>% 
+  mutate( Percent = n * 100 /sum(n)) %>% 
+  pivot_wider(names_from = "response_bin", values_from = c("n", "Percent")) %>% 
+  flextable() %>%
+  colformat_double(digits = 2) %>%
+  fit_to_width(11.5)
+```
+
+```{r fig.height=10}
+esee_long_plot <- esee_long %>% 
+  group_by(question, Condition, response_bin) %>% 
+  summarize(n = n()) %>% 
+  group_by(question, Condition) %>% 
+  mutate( Percent = n * 100 /sum(n))
+  
+ggbarplot(data = esee_long_plot,
+          x = "Condition",
+          fill = "response_bin",
+          y = "Percent",
+          facet.by = c("question"),
+          add = "mean_se",
+          position = position_dodge(0.9)
+          ) + scico::scale_fill_scico_d()
+```

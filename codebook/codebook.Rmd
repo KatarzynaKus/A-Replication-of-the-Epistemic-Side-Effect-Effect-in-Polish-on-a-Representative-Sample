@@ -1,0 +1,107 @@
+---
+title:  "Codebook for Replication of the Epistemic Side‑Effect Effect (ESEE) in Polish on a Representative Sample"
+author: "Bartosz Maćkiewicz, Marta Zaręba, Katarzyna Kuś, Katarzyna Paprzycka‑Hausman"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(codebook)   # creates codebooks
+library(readr)      # fast read_csv()
+
+esee <- read_csv("../data/esee_in_polish_clean.csv")
+
+add_likert_labels <- function(x) {
+  val_labels(x) <- c("-3 Strongly disagree" = -3, 
+                  "-2" = -2, 
+                  "-1" = -1,
+                  "0" = 0,
+                  "1" = 1,
+                  "2" = 2,
+                  "+3 Strongly agree" = 3)
+  x
+}
+
+# Metadata
+attributes(esee)$label <- "Replication of the Epistemic Side‑Effect Effect – Polish sample"
+metadata(esee)$description        <- "Cleaned participant‑level data for the Polish replication of the Epistemic Side‑Effect Effect (ESEE)."
+metadata(esee)$survey_repetition  <- "single"
+metadata(esee)$identifier         <- "TODO: DOI HERE"   
+metadata(esee)$citation           <- "Zaręba M. et al. (2025). Replication of the Epistemic Side‑Effect Effect in Polish on a Representative Sampl. *OSF*."
+
+# Variable labels
+var_label(esee$ID)                  <- "Participant ID"
+var_label(esee$survey_finish_time)  <- "Survey completion time (s)"
+var_label(esee$sex)                 <- "Biological sex"
+var_label(esee$sex2)                <- "Free‑text gender (only if sex = ‘Other’)"
+var_label(esee$age)                 <- "Age bin (panel categories)"
+var_label(esee$edu)                 <- "Highest completed education"
+var_label(esee$year)                <- "Age in years"
+var_label(esee$location)            <- "Place of residence (5 levels)"
+var_label(esee$location2)           <- "Residence – mid split (20–49 k vs. 50–99 k)"
+var_label(esee$location3)           <- "Residence – upper‑mid split (100–200 k vs. 200–500 k)"
+var_label(esee$KLikert)             <- "CEO knew (Likert)"
+var_label(esee$KBinary)             <- "CEO knew (forced choice)"
+var_label(esee$KBinaryAll)          <- "CEO knew – composite (Yes/No/Neither)"
+var_label(esee$KExpl)               <- "Justification (full text)"
+var_label(esee$KExplSimple)         <- "Justification – coded (B/Q/R/O)"
+var_label(esee$KProfits)            <- "CEO knew profits increase"
+var_label(esee$Int)                 <- "Intentionality – ‘intencjonalnie’"
+var_label(esee$IntUmyślnie)         <- "Intentionality – ‘umyślnie’"
+var_label(esee$IntCelowo)           <- "Intentionality – ‘celowo’"
+var_label(esee$IntŚwiadomie)        <- "Intentionality – ‘świadomie’"
+var_label(esee$Intention)           <- "Intention – ‘miał intencję’"
+var_label(esee$BSądził)             <- "Belief – ‘sądził’"
+var_label(esee$BPrzekonany)         <- "Belief – ‘był przekonany’"
+var_label(esee$Aware)               <- "Awareness – ‘był świadomy’"
+var_label(esee$Reasons)             <- "Reasons – ‘miał powody’"
+var_label(esee$Condition)           <- "Experimental condition (Harm/Help)"
+var_label(esee$Scale)               <- "Response format (LIK/FC)"
+var_label(esee$Form)                <- "Item formulation (AG/PR/ST)"
+
+# Value labels for categorical variables
+esee$sex <- factor(
+  esee$sex,
+  levels  = c("Kobieta", "Mężczyzna", "Inna", "Nie chcę udzielać odpowiedzi"),
+  labels  = c("Female", "Male", "Other", "Prefer not to say")
+)
+
+esee$edu <- factor(
+  esee$edu,
+  levels = c(
+    "Podstawowe",
+    "Zawodowe lub policealne",
+    "Średnie",
+    "Wyższe licencjackie lub inżynierskie",
+    "Wyższe magisterskie",
+    "Doktorat lub więcej"
+  ),
+  labels = c(
+    "Primary education",
+    "Vocational / post‑secondary diploma",
+    "Secondary education (high‑school)",
+    "Bachelor’s / Engineering",
+    "Master’s (MA/MSc)",
+    "Doctorate or higher"
+  ),
+  ordered = TRUE
+)
+
+esee$Condition <- factor(esee$Condition, levels = c("Harm", "Help"))
+esee$Scale     <- factor(esee$Scale,     levels = c("LIK", "FC"))
+esee$Form      <- factor(esee$Form,      levels = c("AG", "PR", "ST"))
+esee$KExpl     <- factor(esee$KExpl)
+
+# Likert value labels for all 7‑point items 
+likert_vars <- c(
+  "KLikert", "KProfits",
+  "Int", "IntUmyślnie", "IntCelowo", "IntŚwiadomie", "Intention",
+  "BSądził", "BPrzekonany", "Aware", "Reasons"
+)
+esee[likert_vars] <- lapply(esee[likert_vars], add_likert_labels)
+
+# Build codebook
+codebook(esee)
+```
+
