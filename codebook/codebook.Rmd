@@ -24,11 +24,12 @@ add_likert_labels <- function(x) {
 }
 
 # Metadata
-attributes(esee)$label <- "Replication of the Epistemic Side‑Effect Effect – Polish sample"
+attributes(esee)$label <- "A Replication of the Epistemic Side-Effect Effect in Polish on a Representative Sample"
 metadata(esee)$description        <- "Cleaned participant‑level data for the Polish replication of the Epistemic Side‑Effect Effect (ESEE)."
 metadata(esee)$survey_repetition  <- "single"
-metadata(esee)$identifier         <- "TODO: DOI HERE"   
-metadata(esee)$citation           <- "Zaręba M. et al. (2025). Replication of the Epistemic Side‑Effect Effect in Polish on a Representative Sample. *OSF*."
+metadata(esee)$identifier         <- "doi:10.17605/OSF.IO/6TVNH"   
+metadata(esee)$citation           <- "Zaręba, M., Kuś, K., Maćkiewicz, B., & Paprzycka-Hausman, K. (2025). A Replication of the Epistemic Side-Effect Effect in Polish on a Representative Sample. https://doi.org/10.17605/OSF.IO/6TVNH
+"
 
 # Variable labels
 var_label(esee$ID)                  <- "Participant ID"

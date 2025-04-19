@@ -8,8 +8,17 @@ Results confirmed the presence of the ESEE in Polish across all knowledge formul
 
 OSF PAGE: [https://osf.io/6xn27/](https://osf.io/6tvnh/). 
 
-Structure of the repository:
-questionnaire (A PDF file containing a description of the content for all 12 questionnaire groups.)
-analysis 
-codebook
-data (raw data in sav format + data in csv format)
+## Structure of the repository
+
+- `data` 
+	- `Zbiór_UW_Marta_Zaręba_Esee_v4.sav` - raw data in SPSS `sav` format
+	- `esee_in_polish_cleaned.csv` - CSV file with cleaned data
+- `questionnaire`
+  - `Questionnaire - ESEE in Polish` - a PDF file containing a description of the content for all 12 questionnaire groups.
+- `codebook` 
+	- `codebook.Rmd` - script for generating human and computer readable codebook for the dataset
+	- `codebook.html` - a codebook
+- `analysis` 
+  - `analysis.Rmd` - script for cleaning data (produces `esee_in_polish_cleaned.csv` from raw dataset) and simple analyses; a short description of variables can be also found there
+  - `analysis.html` - compiled report
+
