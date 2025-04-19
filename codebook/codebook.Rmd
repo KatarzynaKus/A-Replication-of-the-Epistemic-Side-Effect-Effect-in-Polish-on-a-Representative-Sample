@@ -28,7 +28,7 @@ attributes(esee)$label <- "Replication of the Epistemic Side‑Effect Effect –
 metadata(esee)$description        <- "Cleaned participant‑level data for the Polish replication of the Epistemic Side‑Effect Effect (ESEE)."
 metadata(esee)$survey_repetition  <- "single"
 metadata(esee)$identifier         <- "TODO: DOI HERE"   
-metadata(esee)$citation           <- "Zaręba M. et al. (2025). Replication of the Epistemic Side‑Effect Effect in Polish on a Representative Sampl. *OSF*."
+metadata(esee)$citation           <- "Zaręba M. et al. (2025). Replication of the Epistemic Side‑Effect Effect in Polish on a Representative Sample. *OSF*."
 
 # Variable labels
 var_label(esee$ID)                  <- "Participant ID"
