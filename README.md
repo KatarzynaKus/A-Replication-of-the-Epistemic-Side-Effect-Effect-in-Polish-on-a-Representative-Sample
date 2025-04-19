@@ -8,6 +8,13 @@ Results confirmed the presence of the ESEE in Polish across all knowledge formul
 
 OSF PAGE: [https://osf.io/6xn27/](https://osf.io/6tvnh/). 
 
+## Citation
+
+If you used the this dataset, please cite it as:
+
+> Zaręba, M., Kuś, K., Maćkiewicz, B., & Paprzycka-Hausman, K. (2025). A Replication of the Epistemic Side-Effect Effect in Polish on a Representative Sample. https://doi.org/10.17605/OSF.IO/6TVNH
+
+
 ## Structure of the repository
 
 - `data` 
