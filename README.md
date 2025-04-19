@@ -1,0 +1,2 @@
+# A Replication of the Epistemic Side-Effect Effect in Polish on a Representative Sample
+  To test the robustness of the effect in Polish, we designed a 3 (formulation of the knowledge claim: agentive, causal, or state-change) × 2 (type of side effect: harm vs help) × 2 (response format: forced-choice vs Likert scale) between-subjects experiment. Participants (N = 1310) were recruited by a professional panel (Ariadna) to ensure demographic representativeness. 
