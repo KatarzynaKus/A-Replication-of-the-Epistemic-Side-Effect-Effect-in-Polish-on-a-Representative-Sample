@@ -29,6 +29,11 @@ get_value <- function(x){
   x[!is.na(x)]
 }
 
+get_value_empty_string <- function(x){
+  if (all(str_trim(x) == "")) return(NA) 
+  x[!(str_trim(x)=="")]
+}
+
 recode_likert <- function(x){
   recode(x,
          `-3 zupełnie się nie zgadzam` = -3,
@@ -52,6 +57,7 @@ esee <- esee %>%
     KLikert = get_value(c_across(matches("p1_4._r1"))),
     KBinary = get_value(c_across(matches("p1_4.$"))),
     KExpl = get_value(c_across(matches("p5._w[123]$", ignore.case = FALSE))),
+    KExplOther = get_value_empty_string(c_across(matches("p5._w[123]inne$", ignore.case = FALSE))),
     KProfits = get_value(c_across(matches("p1_6._r1$"))),
     Int = get_value(c_across(matches("p1_6._r2$"))),
     IntUmyślnie = get_value(c_across(matches("p1_6._r3$"))),
@@ -155,7 +161,7 @@ esee <- esee %>%
 
 esee <- esee %>% select(ID, survey_finish_time, sex, sex2, age, year,
                         location = miasta, location2 = miasta2, location3 = miasta3, 
-                        KLikert, KBinary, KBinaryAll, KExpl, KExplSimple, KProfits, Int, IntUmyślnie,
+                        KLikert, KBinary, KBinaryAll, KExpl, KExplSimple, KExplOther, KProfits, Int, IntUmyślnie,
                         IntCelowo, IntŚwiadomie, Intention, BSądził, BPrzekonany,
                         Aware, Reasons, Condition, Scale, Form, edu)
 
@@ -205,6 +211,7 @@ esee <- read_csv("../data/esee_in_polish_clean.csv")
   - `Q` = *Awareness* (CEO was aware)  
   - `R` = *Reasons* (CEO had reasons)  
   - `O` = *Other* / uncategorised text  
+- **KExplOther** – text for `O` option  
 - **KProfits** –agreement level to “The CEO knew the program would increase profits”; 7‑point Likert (‑3…+3) mirroring **KLikert**  
 - **Int** –agreement level to intentionality attribution with adverb *intencjonalnie* (“intentionally”); Likert ‑3…+3.  
 - **IntUmyślnie** – agreement level to intentionality attribution with adverb *umyślnie* (“deliberately”); Likert ‑3…+3.  
